@@ -5,7 +5,7 @@ function [hPlot] = plot_blobs(ax,A,offset,thr,ROI_line,ROI_color,hwait)
   %% --- INPUTS ---
   %% ax		- axis to plot to
   %% A 		- (nX x nY x nROI) array containing ROI footprints in order to plot  
-  %% offset 	- coordinates (min_y, max_y, min_x, max_x) of imaging window to be displayed
+  %% offset - coordinates (min_y, max_y, min_x, max_x) of imaging window to be displayed
   %% thr 	- threshold for "energy"-cutoff of displayed ROI area (0 = full, 1=peak only)
   %% ROI_line 	- linestyle of ROI contours: single value, or cell of length nROI to be plotted
   %% ROI_color 	- color of ROI contours: single value, or cell of length nROI to be plotted

@@ -84,7 +84,7 @@ function ROI_doc_OpeningFcn(hObject, eventdata, h, pathStart, varargin)
   set(h.ROI_info_table,'Data',cell(0,6))
   
   h.parameter = {};
-  h.parameter.ROI_thr = 0.25;
+  h.parameter.ROI_thr = 0.01;
   h.parameter.radius = 20;
   h.parameter.diameter = 2*h.parameter.radius+1;
   h.parameter.frq = 15;
@@ -374,12 +374,12 @@ function pickROI(hObject,eventdata)
         
         if ~h.ROI_status.half_pair
           h.ROI_status.half_pair = n;
-          set(h.plots(sn).ROIs(n),'Color','m','LineStyle','-')
+          set(h.plots(sn).ROIs(n),'Color','m')
         elseif n == h.ROI_status.half_pair
           if h.status(sn).ROI_select(n)
-              set(h.plots(sn).ROIs(n),'Color','r','LineStyle','-')
+              set(h.plots(sn).ROIs(n),'Color','r')
           else
-            set(h.plots(sn).ROIs(n),'Color',get_ROI_color(h,sn),'LineStyle','-')
+            set(h.plots(sn).ROIs(n),'Color',get_ROI_color(h,sn))
           end
           h.ROI_status.half_pair = 0;
         else
@@ -763,6 +763,7 @@ function ROI_plot_button_Callback(hObject, eventdata, h)
 function [h] = load_ROIs(h)
   field_name = get(h.spec_ROI_field,'String');
   A = sparse(LoadnResize(pathcat(get(h.session_spec,'String'),get(h.spec_ROI_path,'String')),[h.parameter.imSize(1)*h.parameter.imSize(2),0],sprintf('Could not find the field %s. Choose the array containing ROI data',field_name),field_name));
+  
   if numel(A)>1
     set(h.ROI_plot_button,'String','...')
     
@@ -776,6 +777,12 @@ function [h] = load_ROIs(h)
     
     h.data.nROI(h.data.current_session) = size(A,2);
     hwait = waitbar(0,sprintf('Loading and processing %d ROIs...',h.data.nROI(h.data.current_session)));
+    
+    field_name = 'status';
+    data(h.data.current_session).Astatus = LoadnResize(pathcat(get(h.session_spec,'String'),get(h.spec_ROI_path,'String')),[h.data.nROI(h.data.current_session),0],sprintf('Could not find the field %s. Choose the array containing ROI status data',field_name),field_name);
+    if ~nnz(data(h.data.current_session).Astatus)
+      data(h.data.current_session).Astatus = ones(h.data.nROI(h.data.current_session));
+    end
     
     %% shift the data before further processing
     A_tmp = reshape(full(A),h.parameter.imSize(1),h.parameter.imSize(2),h.data.nROI(h.data.current_session));
@@ -819,14 +826,6 @@ function [h] = load_ROIs(h)
         win_y = ceil([h.parameter.radius-(ROIs(h.data.current_session).centroid(n,1)-ROIs(h.data.current_session).filter(n).extent(1,1)), h.parameter.radius+(ROIs(h.data.current_session).filter(n).extent(1,2)-ROIs(h.data.current_session).centroid(n,1))]);
         win_x = ceil([h.parameter.radius-(ROIs(h.data.current_session).centroid(n,2)-ROIs(h.data.current_session).filter(n).extent(2,1)), h.parameter.radius+(ROIs(h.data.current_session).filter(n).extent(2,2)-ROIs(h.data.current_session).centroid(n,2))]);
         
-%          if h.data.current_session == 2
-%            h.data.current_session
-%            n
-%            ROIs(h.data.current_session).filter(n).extent
-%            win_y
-%            win_x
-%          end
-        
         ROIs(h.data.current_session).filter(n).shape(win_y(1):win_y(2),win_x(1):win_x(2)) = A_tmp_norm(ROIs(h.data.current_session).filter(n).extent(1,1):ROIs(h.data.current_session).filter(n).extent(1,2),ROIs(h.data.current_session).filter(n).extent(2,1):ROIs(h.data.current_session).filter(n).extent(2,2));
         
         ROIs(h.data.current_session).area(n) = nnz(A_tmp_norm);
@@ -855,7 +854,29 @@ function [h] = load_ROIs(h)
     data(h.data.current_session).distance = triu(data(h.data.current_session).distance) + triu(data(h.data.current_session).distance,1)';
     data(h.data.current_session).fp_corr = triu(data(h.data.current_session).fp_corr) + triu(data(h.data.current_session).fp_corr,1)';
     
-    h.plots(h.data.current_session).ROIs = plot_blobs(h.ax_ROIs,A_tmp,[],h.parameter.ROI_thr,'-',get_ROI_color(h,h.data.current_session),hwait);
+    for n=1:h.data.nROI(h.data.current_session)
+      switch data(h.data.current_session).Astatus(n)
+        case 0
+          ROI_line{n} = ':';
+        case 1
+          ROI_line{n} = '-';
+        case 2
+          ROI_line{n} = '--';
+      end
+    end
+    
+    h.plots(h.data.current_session).ROIs = plot_blobs(h.ax_ROIs,A_tmp,[],h.parameter.ROI_thr,ROI_line,get_ROI_color(h,h.data.current_session),hwait);
+    
+%      n_bad = find(data(h.data.current_session).Astatus==0);
+%      for n=n_bad
+%        set(h.plots(h.data.current_session).ROIs(n),'LineStyle',':');
+%      end
+    
+%      n_fill = find(data(h.data.current_session).Astatus==2);
+%      for n=n_fill
+%        set(h.plots(h.data.current_session).ROIs(n),'LineStyle','--','Color','y');
+%      end
+    
     
     h.status(h.data.current_session).ROI_tag = h.drop_down_ROI_tag_string{get(h.drop_down_ROI_tag,'Value')};
     
@@ -1204,7 +1225,7 @@ function [h] = update_ROI_select(h,ROI_idx,ROI_color,ROI_line)
       h.ROI_status.add = true;
     else
       %% reset ROI appearance
-      set(h.plots(sn).ROIs(n),'Color',get_ROI_color(h,sn),'LineStyle',ROI_line);
+      set(h.plots(sn).ROIs(n),'Color',get_ROI_color(h,sn));
       set(h.plots(sn).ROI_tag(n),'Visible','off');
       h.status(sn).ROI_select(n) = false;
       
@@ -1221,9 +1242,6 @@ function [h] = update_ROI_select(h,ROI_idx,ROI_color,ROI_line)
     n = ROI_idx(2);
     sn = ROI_idx(1);
     m = h.ROI_status.half_pair;
-    
-    [sn m]
-    h.status(sn).ROI_paired(m).list
     
     if isempty(h.status(sn).ROI_paired(m).list) || ~ismember(n,h.status(sn).ROI_paired(m).list(:,2))
       
@@ -1265,16 +1283,16 @@ function [h] = update_ROI_select(h,ROI_idx,ROI_color,ROI_line)
       h.status(sn).ROI_paired(m).list(h.status(sn).ROI_paired(m).list(:,2)==n,:) = [];
       
       if isempty(h.status(sn).ROI_paired(n).list)
-        set(h.plots(sn).ROIs(n),'Color',get_ROI_color(h,sn),'LineStyle',ROI_line)
+        set(h.plots(sn).ROIs(n),'Color',get_ROI_color(h,sn))
         set(h.plots(sn).ROI_tag(n),'Visible','off')
         h.status(sn).ROI_select(n) = false;
       end
       if isempty(h.status(sn).ROI_paired(m).list)
-        set(h.plots(sn).ROIs(m),'Color',get_ROI_color(h,sn),'LineStyle',ROI_line)
+        set(h.plots(sn).ROIs(m),'Color',get_ROI_color(h,sn))
         set(h.plots(sn).ROI_tag(m),'Visible','off')
         h.status(sn).ROI_select(m) = false;
       else
-        set(h.plots(sn).ROIs(m),'Color',ROI_color,'LineStyle',ROI_line)
+        set(h.plots(sn).ROIs(m),'Color',ROI_color)
       end
       
       table_data(str2num(vertcat(table_data{:,2}))==n & str2num(vertcat(table_data{:,3}))==m,:) = [];
@@ -1344,7 +1362,7 @@ function [h] = update_ROI_select(h,ROI_idx,ROI_color,ROI_line)
         n = ROI_idx(i,2);
         sn = ROI_idx(i,1);
       
-        set(h.plots(sn).ROIs(n),'Color',get_ROI_color(h,sn),'LineStyle',ROI_line)
+        set(h.plots(sn).ROIs(n),'Color',get_ROI_color(h,sn))
         h.status(sn).ROI_select(n) = false;
         h.status(sn).ROI_paired(n).list = [];
         set(h.plots(sn).ROI_tag(n),'Visible','off')
@@ -1619,7 +1637,7 @@ function update_mass_select(hObject,eventdata,h)
           disp(sprintf('%d ROIs are tagged, with %5.0f pairs in total',length(ROI_idx_unique), length(ROI_list_n)/2))
           for i = 1:length(ROI_idx_unique)
             n = ROI_idx_unique(i);
-            set(h.plots(sn).ROIs(n),'Color','r','LineStyle','-')              
+            set(h.plots(sn).ROIs(n),'Color','r')              
             if get(h.drop_down_ROI_tag,'Value')>1
               set(h.plots(sn).ROI_tag(n),'Visible','on')
             end
@@ -2748,7 +2766,7 @@ function unselect_menu_Callback(hObject, eventdata, h)
       ROI_idx = get_n_from_table(h,h.ROI_status.list_pick(1));
       sn = ROI_idx(1);
       n = ROI_idx(2);
-      set(h.plots(sn).ROIs(n),'Color',get_ROI_color(h,sn),'LineStyle','-','LineWidth',0.75)
+      set(h.plots(sn).ROIs(n),'Color',get_ROI_color(h,sn),'LineWidth',0.75)
       
       h.ROI_status.highlight = [];
       h.status(sn).ROI_select(n) = false;
@@ -2766,16 +2784,16 @@ function unselect_menu_Callback(hObject, eventdata, h)
       
       %% and update colors according to if they are still matched or not
       if size(h.status(sn).ROI_paired(n).list,1) > 0
-        set(h.plots(sn).ROIs(n),'Color','r','LineStyle','-','LineWidth',0.75)
+        set(h.plots(sn).ROIs(n),'Color','r','LineWidth',0.75)
       else
-        set(h.plots(sn).ROIs(n),'Color',get_ROI_color(h,sn),'LineStyle','-','LineWidth',0.75)
+        set(h.plots(sn).ROIs(n),'Color',get_ROI_color(h,sn),'LineWidth',0.75)
         set(h.plots(sn).ROI_tag(n),'Visible','off')
         h.status(sn).ROI_select(n) = false;
       end
       if size(h.status(sn).ROI_paired(m).list,1) > 0
-        set(h.plots(sn).ROIs(m),'Color','r','LineStyle','-','LineWidth',0.75)
+        set(h.plots(sn).ROIs(m),'Color','r','LineWidth',0.75)
       else
-        set(h.plots(sn).ROIs(m),'Color',get_ROI_color(h,sn),'LineStyle','-','LineWidth',0.75)
+        set(h.plots(sn).ROIs(m),'Color',get_ROI_color(h,sn),'LineWidth',0.75)
         set(h.plots(sn).ROI_tag(m),'Visible','off')
         h.status(sn).ROI_select(m) = false;
       end
