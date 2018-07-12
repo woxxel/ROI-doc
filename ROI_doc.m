@@ -778,11 +778,11 @@ function [h] = load_ROIs(h)
     h.data.nROI(h.data.current_session) = size(A,2);
     hwait = waitbar(0,sprintf('Loading and processing %d ROIs...',h.data.nROI(h.data.current_session)));
     
-    field_name = 'status';
-    data(h.data.current_session).Astatus = LoadnResize(pathcat(get(h.session_spec,'String'),get(h.spec_ROI_path,'String')),[h.data.nROI(h.data.current_session),0],sprintf('Could not find the field %s. Choose the array containing ROI status data',field_name),field_name);
-    if ~nnz(data(h.data.current_session).Astatus)
-      data(h.data.current_session).Astatus = ones(h.data.nROI(h.data.current_session));
-    end
+%      field_name = 'status';
+%      data(h.data.current_session).Astatus = LoadnResize(pathcat(get(h.session_spec,'String'),get(h.spec_ROI_path,'String')),[h.data.nROI(h.data.current_session),0],sprintf('Could not find the field %s. Choose the array containing ROI status data',field_name),field_name);
+%      if ~nnz(data(h.data.current_session).Astatus)
+%        data(h.data.current_session).Astatus = ones(h.data.nROI(h.data.current_session));
+%      end
     
     %% shift the data before further processing
     A_tmp = reshape(full(A),h.parameter.imSize(1),h.parameter.imSize(2),h.data.nROI(h.data.current_session));
@@ -854,16 +854,16 @@ function [h] = load_ROIs(h)
     data(h.data.current_session).distance = triu(data(h.data.current_session).distance) + triu(data(h.data.current_session).distance,1)';
     data(h.data.current_session).fp_corr = triu(data(h.data.current_session).fp_corr) + triu(data(h.data.current_session).fp_corr,1)';
     
-    for n=1:h.data.nROI(h.data.current_session)
-      switch data(h.data.current_session).Astatus(n)
-        case 0
-          ROI_line{n} = ':';
-        case 1
-          ROI_line{n} = '-';
-        case 2
-          ROI_line{n} = '--';
-      end
-    end
+%      for n=1:h.data.nROI(h.data.current_session)
+%        switch data(h.data.current_session).Astatus(n)
+%          case 0
+%            ROI_line{n} = ':';
+%          case 1
+%            ROI_line{n} = '-';
+%          case 2
+%            ROI_line{n} = '--';
+%        end
+%      end
     
     h.plots(h.data.current_session).ROIs = plot_blobs(h.ax_ROIs,A_tmp,[],h.parameter.ROI_thr,ROI_line,get_ROI_color(h,h.data.current_session),hwait);
     
