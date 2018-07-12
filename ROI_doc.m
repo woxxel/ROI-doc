@@ -865,7 +865,7 @@ function [h] = load_ROIs(h)
 %        end
 %      end
     
-    h.plots(h.data.current_session).ROIs = plot_blobs(h.ax_ROIs,A_tmp,[],h.parameter.ROI_thr,ROI_line,get_ROI_color(h,h.data.current_session),hwait);
+    h.plots(h.data.current_session).ROIs = plot_blobs(h.ax_ROIs,A_tmp,[],h.parameter.ROI_thr,'-',get_ROI_color(h,h.data.current_session),hwait);
     
 %      n_bad = find(data(h.data.current_session).Astatus==0);
 %      for n=n_bad
